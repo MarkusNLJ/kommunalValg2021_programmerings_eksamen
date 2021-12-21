@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link th:href="@{/styles/Style.css}" rel="stylesheet">
+</head>
+<body>
+<section class="headline">
+    <h1>Hvidovre kommunalvalg 2021</h1>
+</section>
+<table>
+    <button id="create-btn" class="buttons">Opret Kandidat</button>
+    <button class="buttons">End election <a href=""></a></button>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th id="parti-sort">Parti</th>
+            <th>politisk holdning</th>
+            <th>Antal stemmer:</th>
+            <th></th>
+            <th></th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody id="parti-body"></tbody>
+</table>
+<!-- Modal -->
+<div id="create-modal" class="modal">
+    <div class="modal-content">
+        <span id="close" class="close">&times;</span>
+        <h5 class="modal-title" id="modal-title"> Candidate</h5>
+        <form>
+            <p hidden> Candidate ID: <span id="candidate-id"></span></p>
+            <label>Navn:</label>
+            <input type="text" placeholder="Full name" id="name">
+            <label>Parti:</label>
+            <input type="number" placeholder="Parti nummer" id="parti">
+            <label>Politisk holding:</label>
+            <input type="text" placeholder="Forklar din politik" id="holdning">
+            <label>Antal stemmer</label>
+            <input type="number" placeholder="indtast stemmer" id="stemmer">
+
+            <button id="save-btn">Gem</button>
+        </form>
+    </div>
+    <div class="modal-footer">
+        <button id="close-button" type="button">Luk</button>
+    </div>
+</div>
+<!-- End of modal -->
+<script>
+    function localCache() {
+        let candidates = []
+
+        const addEdit = (candidate, method) => {
+            if (method === "POST") {
+                candidates.push(candidate)
+            } else if (method === "PUT") {
+                candidates = candidates.map(c => c.id == candidate.id ? candidate : c)
+            }
+        }
+
+        return {
+            //getAll : function() { return  candidates },
+            getAll: () => candidates, //This is the same as above
+            addAll: (all) => candidates = all,
+            deleteOne: (id) => candidates = candidates.filter(c => c.id !== Number(id)),
+            findById: (id) => candidates.find(c => c.id == id),
+            addEdit: addEdit
+        }
+    }
+
+
+    const URL = "http://localhost:8080/Kandidater";
+    let candidates = []
+    const URL1 = "http://localhost:8080/Partier";
+    let parties = []
+
+    function fetchCandidates() {
+        fetch(URL)
+            .then(res => res.json())
+            .then(data => {
+                candidates = data
+                console.log(data)
+                cache.addAll(data)
+                makeCandidateRows(candidates)
+            })
+    }
+
+    function fetchParties() {
+        fetch(URL1)
+            .then(res => res.json())
+            .then(data => {
+                parties = data
+                console.log(data)
+
+                makeCandidateRows(candidates)
+            })
+    }
+
+    const cache = localCache()
+    fetchParties()
+    fetchCandidates()
+    setUpHandlers()
+
+    function makeCandidateRows() {
+        candidates = cache.getAll()
+        const rows = candidates.map(can => `
+         <tr>
+           <td>${can.name}</td>
+           <td>${can.parti.name}</td>
+           <td>${can.politicalView}</td>
+           <td>${can.personalVotes}</td>
+            <td><button data-id-delete=${can.id}>Delete Candidate</td>
+            <td><button data-id-edit='${can.id}'>Edit Candidate</button> </td>
+         </tr>
+        `)
+
+        document.getElementById("parti-body").innerHTML = rows.join("")
+    }
+
+    function sortParties(evt) {
+        evt.stopPropagation()
+        candidates.sort((a, b) => {
+            if (a.parti.name < b.parti.name) {
+                return -1
+            }
+            if (a.parti.name > b.parti.name) {
+                return 1
+            }
+            return 0
+        })
+        makeCandidateRows()
+    }
+
+
+    function makeNewCandidate() {
+        showModal({
+            id: null,
+            age: "",
+            name: "",
+            gender: "",
+            email: ""
+        })
+    }
+
+    function saveCandidate(evt) {
+        evt.preventDefault()
+        evt.stopPropagation()
+        const candidate = {}
+        candidate.id = Number(document.getElementById("candidate-id").innerText)
+        candidate.name = document.getElementById("name").value
+        candidate.parti = parties.find(p => p.partiID == document.getElementById("parti").value)
+        candidate.politicalView = document.getElementById("holdning").value
+        candidate.personalVotes = document.getElementById("stemmer").value
+        console.log(candidate)
+        const method = candidate.id ? "PUT" : "POST"
+        const url = (method === "PUT") ? URL : URL + "/" + candidate.parti.partiID
+        const options = {
+            method: method,
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(candidate)
+        }
+        fetch(url, options)
+            .then(res => {
+                if (!res.ok){
+                  throw "Error, candidate not created"}
+            })
+            .then(candicate => {
+                cache.addEdit(candidate, method)
+                makeCandidateRows()
+                document.getElementById("create-modal").style.display = "none";
+            })
+    }
+
+    function showModal(can) {
+        const modal = document.getElementById("create-modal");
+        let span = document.getElementsByClassName("close")[0];
+        document.getElementById("modal-title").innerText = can.id ? "Edit Candidate" : "Add Candidate"
+        document.getElementById("candidate-id").innerText = can.id
+        document.getElementById("name").value = can.name
+        document.getElementById("parti").value = can.parti
+        document.getElementById("holdning").value = can.politicalView
+        document.getElementById("stemmer").value = can.personalVotes;
+
+        modal.style.display = "block";
+
+        span.onclick = function () {
+            modal.style.display = "none";
+        }
+
+        window.onclick = function (event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+    }
+
+    function setUpHandlers() {
+        document.getElementById("save-btn").onclick = saveCandidate
+        document.getElementById("parti-body").onclick = handleTableClick
+        document.getElementById("create-btn").onclick = makeNewCandidate
+        document.getElementById("parti-sort").onclick = sortParties
+    }
+
+    function handleTableClick(evt){
+        evt.preventDefault()
+        evt.stopPropagation()
+        const target = evt.target;
+        if (target.dataset.idDelete) {
+            const idToDelete = Number(target.dataset.idDelete)
+            const options = {
+                method: "DELETE",
+                headers: {'Accept': 'application/json'}
+            }
+            fetch(URL + "/" + idToDelete, options)
+                .then(x => {
+                console.log('removed');
+                cache.deleteOne(idToDelete)
+                    makeCandidateRows()
+            }).catch(err => {
+                console.error(err)
+            });
+        }
+        if (target.dataset.idEdit) {
+            const idToEdit = Number(target.dataset.idEdit)
+            const candidate = cache.findById(idToEdit)
+            console.log(candidate)
+            showModal(candidate)
+        }
+    }
+
+</script>
+</body>
+</html>

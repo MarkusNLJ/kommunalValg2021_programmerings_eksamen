@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link th:href="@{/styles/Style.css}" rel="stylesheet">
+</head>
+<body>
+<section class="headline">
+    <h1>Hvidovre kommunalvalg 2021</h1>
+</section>
+<table>
+    <button id="create-btn" class="buttons">Opret Kandidat</button>
+    <button class="buttons">End election <a href=""></a></button>
+    <thead>
+    <tr>
+        <th>Name:</th>
+        <th>Letter:</th>
+        <th>Number of votes:</th>
+        <th>procent of votes:</th>
+    </tr>
+    </thead>
+    <tbody id="t-body"></tbody>
+    <script>
+
+        const URL = "http://localhost:8080/Kandidater";
+        let candidates = []
+        const URL1 = "http://localhost:8080/Partier";
+        let parties = []
+
+        function fetchCandidates() {
+            fetch(URL)
+                .then(res => res.json())
+                .then(data => {
+                    candidates = data
+                    console.log(data)
+                    cache.addAll(data)
+                    makeCandidateRows(candidates)
+                })
+        }
+
+        fetchParties()
+        fetchCandidates()
+
+        function countVotes(){
+            let totalVotes;
+            for (let i = 0; i < candidates.length; i++) {
+                if (candidates[i].parti.name == parti){
+                    totalVotes += candidates[i].personalVotes
+                }
+
+            }
+        }
+
+        function makeCandidateRows() {
+            parties.forEach(countVotes)
+            const rows = parties.map(par => `
+         <tr>
+           <td>${par.name}</td>
+           <td>${par.letter}</td>
+           <td>${par.totalNumberOfVotes}</td>
+           <td>${}</td>
+         </tr>
+        `)
+
+            document.getElementById("parti-body").innerHTML = rows.join("")
+        }
+
+    </script>
+</table>
